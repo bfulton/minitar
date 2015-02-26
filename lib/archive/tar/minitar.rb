@@ -245,6 +245,8 @@ module Archive::Tar::Minitar
     # The exception raised when a filename exceeds 256 bytes in length,
     # the maximum supported by the standard Tar format.
   class FileNameTooLong < StandardError; end
+    # The exception raised when a file is not in the strip_prefix directory.
+  class BadFilePrefix < StandardError; end
     # The exception raised when a data stream ends before the amount of data
     # expected in the archive's PosixHeader.
   class UnexpectedEOF < StandardError; end
@@ -309,8 +311,9 @@ module Archive::Tar::Minitar
     end
 
       # Creates and returns a new Writer object.
-    def initialize(anIO)
+    def initialize(anIO, opts = {})
       @io     = anIO
+      @strip_prefix = @opts[:strip_prefix] || ""
       @closed = false
     end
 
@@ -424,6 +427,8 @@ module Archive::Tar::Minitar
 
     private
     def split_name(name)
+      raise BadFilePrefix.new(name) unless name.start_with?(@strip_prefix)
+      name = name[@strip_prefix.length..-1]
       raise FileNameTooLong if name.size > 256
       if name.size <= 100
         prefix = ""
